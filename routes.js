@@ -23,8 +23,8 @@ router.get('/registros', (req, res) => {
 
 //Logeo de usuarios
 
-router.get('/redirige', async (req, res) => {
-    const { email, password } = req.query;
+router.post('/redirige', async (req, res) => {
+    const { email, password } = req.body;
 
     console.log('Datos recibidos:', { email, password }); // Depuración
 
@@ -57,7 +57,7 @@ router.get('/redirige', async (req, res) => {
             }
 
             const { password: _, ...userData } = user;
-            res.json({ ...userData, password: user.password});
+            res.json({password: user.password});
         });
     } catch (error) {
         console.error('Error en el servidor:', error); //Depuración
@@ -100,12 +100,13 @@ router.post('/registros', [
     const { password, ...rest } = req.body;
 
     try {
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-        console.log('Contraseña hasheada:', hashedPassword);
-
+        const hashPassword = async (password) => {
+            return await bcrypt.hash(password, saltRounds);
+        };
+        
         const nuevoRegistro = {
             ...rest,
-            password: hashedPassword,
+            password: hashPassword,
             created_at: new Date(),
             updated_at: new Date()
         };
