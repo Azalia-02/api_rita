@@ -21,6 +21,97 @@ router.get('/registros', (req, res) => {
     });
 });
 
+// Obtener todos los pacientes con paginación y búsqueda
+router.get('/pacientes', (req, res) => {
+    const search = req.query.search || '';  // Texto de búsqueda
+    const page = parseInt(req.query.page) || 1;  // Página actual
+    const limit = parseInt(req.query.limit) || 6; // Registros por página
+    const offset = (page - 1) * limit;  // Calcular desde qué registro comenzar
+
+    // Consulta con búsqueda y paginación
+    const query = `
+        SELECT * FROM tb_pacientes 
+        WHERE nombre LIKE ? 
+        LIMIT ? OFFSET ?`;
+    
+    const countQuery = `SELECT COUNT(*) AS total FROM tb_pacientes WHERE nombre LIKE ?`;
+
+    connection.query(query, [`%${search}%`, limit, offset], (err, results) => {
+        if (err) {
+            console.error('Error al obtener pacientes:', err);
+            return res.status(500).json({ error: 'Error al obtener pacientes' });
+        }
+
+        connection.query(countQuery, [`%${search}%`], (err, countResults) => {
+            if (err) {
+                console.error('Error al contar pacientes:', err);
+                return res.status(500).json({ error: 'Error al contar pacientes' });
+            }
+
+            res.json({
+                data: results, 
+                total: countResults[0].total, 
+                page, 
+                limit
+            });
+        });
+    });
+});
+
+// Obtener un paciente por ID
+router.get('/pacientes/:id', (req, res) => {
+    const id = req.params.id;
+    connection.query('SELECT * FROM tb_pacientes WHERE id_paciente = ?', [id], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el paciente:', err);
+            return res.status(500).json({ error: 'Error al obtener el paciente' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Paciente no encontrado' });
+        }
+        res.json(results[0]);
+    });
+});
+
+// Crear un nuevo paciente
+router.post('/pacientes', (req, res) => {
+    const nuevoPaciente = req.body;
+    connection.query('INSERT INTO tb_pacientes SET ?', nuevoPaciente, (err, results) => {
+        if (err) {
+            console.error('Error al crear paciente:', err);
+            return res.status(500).json({ error: 'Error al crear paciente' });
+        }
+        res.status(201).json({ message: 'Paciente creado exitosamente' });
+    });
+});
+
+// Actualizar un paciente
+router.put('/pacientes/:id', (req, res) => {
+    const id = req.params.id;
+    const datosActualizados = req.body;
+    connection.query('UPDATE tb_pacientes SET ? WHERE id_paciente = ?', [datosActualizados, id], (err, results) => {
+        if (err) {
+            console.error('Error al actualizar paciente:', err);
+            return res.status(500).json({ error: 'Error al actualizar paciente' });
+        }
+        res.json({ message: 'Paciente actualizado exitosamente' });
+    });
+});
+
+// Eliminar un paciente
+router.delete('/pacientes/:id', (req, res) => {
+    const id = req.params.id;
+    connection.query('DELETE FROM tb_pacientes WHERE id_paciente = ?', [id], (err, results) => {
+        if (err) {
+            console.error('Error al eliminar paciente:', err);
+            return res.status(500).json({ error: 'Error al eliminar paciente' });
+        }
+        res.json({ message: 'Paciente eliminado exitosamente' });
+    });
+});
+
+module.exports = router;
+
 //Logeo de usuarios
 
 router.post('/redirige', async (req, res) => {
