@@ -243,38 +243,11 @@ router.post('/registros', async (req, res) => {
 
     if (!nombre || !app || !apm || !email || !password || !rol) {
         return res.status(400).json({ error: 'Todos los campos son requeridos' });
-        if (user) {
-            throw new Error('Este correo electrónico ya está registrado');
-        }
-    }),
-    body('password')
-        .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
-        .withMessage('La contraseña debe tener al menos una mayúscula, una minúscula, un número y un carácter especial'),
-    body('rol').isIn(['admin', 'user']).withMessage('El rol no es válido')
-    
-], async (req, res) => {
-    console.log(req.body);
-    
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        console.log('Errores de validación', errors.array());
-        return res.status(400).json({ errors: errors.array() });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password.trim(), 10);
-        const hashPassword = async (password) => {
-            console.error
-            return await bcrypt.hash(password, saltRounds);
-        };
-        
-        const nuevoRegistro = {
-            ...rest,
-            password: hashPassword,
-            created_at: new Date(),
-            updated_at: new Date()
-        };
+        console.log('Contraseña hasheada:', hashedPassword);
 
         const query = 'INSERT INTO tb_login (nombre, app, apm, email, password, rol, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
         const values = [nombre, app, apm, email, hashedPassword, rol, new Date(), new Date()];
@@ -285,6 +258,7 @@ router.post('/registros', async (req, res) => {
                 return res.status(500).json({ error: 'Error al registrar el usuario' });
             }
 
+            console.log('Usuario registrado exitosamente:', results);
             res.json({ success: true, message: 'Usuario registrado exitosamente' });
         });
     } catch (error) {
