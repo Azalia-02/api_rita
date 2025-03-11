@@ -110,120 +110,68 @@ router.delete('/pacientes/:id', (req, res) => {
     });
 });
 
-module.exports = router;
-
 //Logeo de usuarios
 
 router.post('/redirige', async (req, res) => {
     const { email, password } = req.body;
 
-    console.log('Datos recibidos:', { email, password }); // Depuración
-
     if (!email || !password) {
-        console.error('Faltan parámetros'); //Depuración
         return res.status(400).json({ error: 'Los parámetros email y contraseña son requeridos' });
     }
 
     try {
         connection.query('SELECT * FROM tb_login WHERE email = ?', [email], async (err, results) => {
             if (err) {
-                console.error('Error en la consulta:', err); //Depuración
+                console.error('Error en la consulta:', err);
                 return res.status(500).json({ error: 'Error al obtener registros' });
             }
 
-            console.log('Resultados de la consulta:', results); //Depuración
-
             if (results.length === 0) {
-                console.error('Usuario no encontrado'); //Depuración
                 return res.status(404).json({ error: 'Usuario no encontrado' });
             }
 
             const user = results[0];
-            console.log('Usuario encontrado:', user); //Depuración
 
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
-                console.error('Contraseña incorrecta'); //Depuración
                 return res.status(401).json({ error: 'Contraseña incorrecta' });
             }
 
-            const { password: _, ...userData } = user;
-            res.json({password: user.password});
+            res.json(user);
         });
     } catch (error) {
-        console.error('Error en el servidor:', error); //Depuración
+        console.error('Error en el servidor:', error);
         res.status(500).json({ error: 'Error en el servidor' });
     }
 });
 
 // Crear nuevos usuarios
 
-router.post('/registros', [
-    body('nombre').notEmpty().withMessage('El nombre es requerido'),
-    body('app').notEmpty().withMessage('El apellido paterno es requerido'),
-    body('apm').notEmpty().withMessage('El apellido materno es requerido'),
-    body('email').isEmail().withMessage('El correo electrónico no es válido'),
-    body('email').custom(async (email) => {
-        const user = await new Promise((resolve, reject) => {
-            connection.query('SELECT * FROM tb_login WHERE email = ?', [email], (err, results) => {
-                if (err) return reject(err);
-                resolve(results[0]);
-            });
-        });
+router.post('/registros', async (req, res) => {
+    const { nombre, app, apm, email, password, rol } = req.body;
 
-        if (user) {
-            throw new Error('Este correo electrónico ya está registrado');
-        }
-    }),
-    body('password')
-        .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
-        .withMessage('La contraseña debe tener al menos una mayúscula, una minúscula, un número y un carácter especial'),
-    body('rol').isIn(['admin', 'user']).withMessage('El rol no es válido')
-], async (req, res) => {
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        console.log('Errores de validación', errors.array());
-        return res.status(400).json({ errors: errors.array() });
+    if (!nombre || !app || !apm || !email || !password || !rol) {
+        return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
-
-    const { password, ...rest } = req.body;
 
     try {
-        const hashPassword = async (password) => {
-            return await bcrypt.hash(password, saltRounds);
-        };
-        
-        const nuevoRegistro = {
-            ...rest,
-            password: hashPassword,
-            created_at: new Date(),
-            updated_at: new Date()
-        };
+        const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
-        connection.query('INSERT INTO tb_login SET ?', nuevoRegistro, (err, results) => {
+        const query = 'INSERT INTO tb_login (nombre, app, apm, email, password, rol, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        const values = [nombre, app, apm, email, hashedPassword, rol, new Date(), new Date()];
+
+        connection.query(query, values, (err, results) => {
             if (err) {
-                console.error('Error al crear un nuevo registro:', err);
-                return res.status(500).json({
-                    error: 'Error al crear un nuevo registro',
-                    details: err.message
-                });
+                console.error('Error en la consulta:', err);
+                return res.status(500).json({ error: 'Error al registrar el usuario' });
             }
 
-            res.status(201).json({
-                message: 'Registro creado exitosamente',
-                userId: results.insertId
-            });
+            res.json({ success: true, message: 'Usuario registrado exitosamente' });
         });
-    } catch (err) {
-        console.error('Error al hashear la contraseña:', err);
-        return res.status(500).json({
-            error: 'Error al hashear la contraseña',
-            details: err.message
-        });
+    } catch (error) {
+        console.error('Error en el servidor:', error);
+        res.status(500).json({ error: 'Error en el servidor' });
     }
 });
-
 
 module.exports = router;
