@@ -267,4 +267,103 @@ router.post('/registros', async (req, res) => {
     }
 });
 
+// Obtener todos los productos
+router.get('/productos', (req, res) => {
+    connection.query('SELECT * FROM tb_productos', (err, results) => {
+      if (err) {
+        console.error('Error al obtener registros:', err);
+        res.status(500).json({ error: 'Error al obtener registros' });
+        return;
+      }
+      res.json(results);
+    });
+  });
+
+// Obtener un producto por ID
+router.get('/productos/:id', (req, res) => {
+  const id = req.params.id;
+  connection.query('SELECT * FROM tb_productos WHERE id_producto = ?', [id], (err, results) => {
+      if (err) {
+          console.error('Error al obtener el producto:', err);
+          return res.status(500).json({ error: 'Error al obtener el producto' });
+      }
+      if (results.length === 0) {
+          return res.status(404).json({ error: 'Producto no encontrado' });
+      }
+      res.json(results[0]);
+  });
+});
+
+// Crear un nuevo producto
+router.post('/productos', (req, res) => {
+  const nuevoProducto = req.body;
+  connection.query('INSERT INTO tb_productos SET ?', nuevoProducto, (err, results) => {
+      if (err) {
+          console.error('Error al crear producto:', err);
+          return res.status(500).json({ error: 'Error al crear producto' });
+      }
+      res.status(201).json({ message: 'Producto creado exitosamente' });
+  });
+});
+
+// Actualizar un producto
+router.put('/productos/:id', (req, res) => {
+  const id = req.params.id;
+  const datosActualizados = req.body;
+  connection.query('UPDATE tb_productos SET ? WHERE id_producto = ?', [datosActualizados, id], (err, results) => {
+      if (err) {
+          console.error('Error al actualizar producto:', err);
+          return res.status(500).json({ error: 'Error al actualizar producto' });
+      }
+      res.json({ message: 'Producto actualizado exitosamente' });
+  });
+});
+
+// Eliminar un producto
+router.delete('/productos/:id', (req, res) => {
+  const id = req.params.id;
+  connection.query('DELETE FROM tb_productos WHERE id_producto = ?', [id], (err, results) => {
+      if (err) {
+          console.error('Error al eliminar producto:', err);
+          return res.status(500).json({ error: 'Error al eliminar producto' });
+      }
+      res.json({ message: 'Producto eliminado exitosamente' });
+  });
+});
+
+// Obtener todas las citas
+router.get('/citas', (req, res) => {
+    connection.query('SELECT * FROM tb_citas', (err, results) => {
+      if (err) {
+        console.error('Error al obtener registros:', err);
+        res.status(500).json({ error: 'Error al obtener registros' });
+        return;
+      }
+      res.json(results);
+    });
+  });
+
+  // Crear una nueva cita
+  router.post('/citas', [
+      body('id_paciente').isInt().withMessage('El ID del paciente debe ser un número entero'),
+      body('id_medico').isInt().withMessage('El ID del médico debe ser un número entero'),
+      body('fecha').isDate().withMessage('La fecha debe ser una fecha válida'),
+      body('hora').notEmpty().withMessage('La hora es requerida'),
+      body('detalle').isString().withMessage('El detalle debe ser una cadena de texto'),
+  ], (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+  
+      const nuevaCita = req.body;
+      connection.query('INSERT INTO tb_citas SET ?', nuevaCita, (err, results) => {
+          if (err) {
+              console.error('Error al crear cita:', err);
+              return res.status(500).json({ error: 'Error al crear cita' });
+          }
+          res.status(201).json({ message: 'Cita creada exitosamente', id: results.insertId });
+      });
+  });
+
 module.exports = router;
