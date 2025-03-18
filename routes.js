@@ -111,6 +111,32 @@ router.delete('/pacientes/:id', (req, res) => {
 });
 
 
+router.get('/contar-por-sexo', (req, res) => {
+    const query = `
+        SELECT 
+            SUM(CASE WHEN sex = 'Masculino' THEN 1 ELSE 0 END) AS hombres,
+            SUM(CASE WHEN sex = 'Femenino' THEN 1 ELSE 0 END) AS mujeres
+        FROM tb_pacientes`;
+
+    console.log('Ejecutando consulta:', query); // Depuración
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al contar pacientes por sexo:', err);
+            return res.status(500).json({ error: 'Error al contar pacientes por sexo' });
+        }
+
+        console.log('Resultados de la consulta:', results); // Depuración
+
+        if (results.length === 0 || !results[0].hombres || !results[0].mujeres) {
+            return res.status(200).json({ hombres: 0, mujeres: 0 }); // Devuelve 0 si no hay datos
+        }
+
+        res.json(results[0]); // Devuelve { hombres: X, mujeres: Y }
+    });
+});
+
+
 // Obtener todos los medicos con paginación y búsqueda
 router.get('/medicos', (req, res) => {
     const search = req.query.search || '';  // Texto de búsqueda
@@ -201,8 +227,33 @@ router.delete('/medicos/:id', (req, res) => {
 });
 
 
-//Logeo de usuarios
+router.get('/medicos-por-sexo', (req, res) => {
+    const query = `
+        SELECT 
+            SUM(CASE WHEN sex = 'Masculino' THEN 1 ELSE 0 END) AS hombres,
+            SUM(CASE WHEN sex = 'Femenino' THEN 1 ELSE 0 END) AS mujeres
+        FROM tb_medicos`;
 
+    console.log('Ejecutando consulta:', query); // Depuración
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al contar medicos por sexo:', err);
+            return res.status(500).json({ error: 'Error al contar medicos por sexo' });
+        }
+
+        console.log('Resultados de la consulta:', results); // Depuración
+
+        if (results.length === 0 || !results[0].hombres || !results[0].mujeres) {
+            return res.status(200).json({ hombres: 0, mujeres: 0 }); // Devuelve 0 si no hay datos
+        }
+
+        res.json(results[0]); // Devuelve { hombres: X, mujeres: Y }
+    });
+});
+
+
+//Logeo de usuarios
 router.post('/redirige', async (req, res) => {
     const { email, password } = req.body;
 
