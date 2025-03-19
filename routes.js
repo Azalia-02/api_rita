@@ -4,6 +4,7 @@ const connection = require('./db');
 const bcrypt = require('bcrypt');
 const { body, validationResult } = require('express-validator');
 const saltRounds = 10;
+const failedAttempts = {};
 
 router.get('/registros', (req, res) => {
     connection.query('SELECT * FROM tb_login', (err, results) => {
@@ -257,8 +258,9 @@ router.get('/medicos-por-sexo', (req, res) => {
 router.post('/redirige', async (req, res) => {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Los parámetros email y contraseña son requeridos' });
+    if (failedAttempts[email] && failedAttempts[email].blockedUntil > Date.now()) {
+        const remainingTime = Math.ceil((failedAttempts[email].blockedUntil - Date.now()) / 1000);
+        return res.status(429).json({ error: `Demasiados intentos fallidos. Por favor, inténtelo de nuevo en ${remainingTime} segundos.` });
     }
 
     try {
@@ -275,9 +277,20 @@ router.post('/redirige', async (req, res) => {
             const user = results[0];
 
             const isPasswordValid = await bcrypt.compare(password, user.password);
+
             if (!isPasswordValid) {
-                return res.status(401).json({ error: 'Contraseña incorrecta' });
+                failedAttempts[email] = failedAttempts[email] || { count: 0 };
+                failedAttempts[email].count += 1;
+
+                if (failedAttempts[email].count >= 3) {
+                    failedAttempts[email].blockedUntil = Date.now() + 30000; 
+                    return res.status(429).json({ error: 'Demasiados intentos fallidos. Por favor, inténtelo de nuevo en 30 segundos.' });
+                }
+
+                return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
             }
+
+            delete failedAttempts[email];
 
             res.json(user);
         });
@@ -288,7 +301,6 @@ router.post('/redirige', async (req, res) => {
 });
 
 // Crear nuevos usuarios
-
 router.post('/registros', async (req, res) => {
     const { nombre, app, apm, email, password, rol } = req.body;
 
