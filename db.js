@@ -1,5 +1,6 @@
 require('dotenv').config(); // Importar dotenv
 const mysql = require('mysql');
+const util = require('util');
 
 const connection = mysql.createConnection({
     host: process.env.DB_HOST,
@@ -16,4 +17,7 @@ connection.connect((err) => {
     console.log('Conexión a la base de datos exitosa');
 });
 
-module.exports = connection;
+// ✅ Promisificar la conexión para usar async/await
+const queryAsync = util.promisify(connection.query).bind(connection);
+
+module.exports = { connection, queryAsync };

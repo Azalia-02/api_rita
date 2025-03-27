@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const connection = require('./db');
+const { connection, queryAsync } = require('./db');  // ✅ Correcto
 const bcrypt = require('bcrypt');
 const { body, validationResult } = require('express-validator');
 const saltRounds = 10;
@@ -428,5 +428,79 @@ router.get('/citas', (req, res) => {
           res.status(201).json({ message: 'Cita creada exitosamente', id: results.insertId });
       });
   });
+
+// =============================
+// ✅ Obtener todos los registros de sensores
+
+// ✅ Obtener todos los registros de sensores
+// =============================
+router.get('/sensores', async (req, res) => {
+    try {
+        const query = 'SELECT * FROM tb_sensor ORDER BY created_at DESC';
+        const results = await queryAsync(query);  // Usar queryAsync para consistencia
+
+        if (results.length === 0) {
+            return res.status(404).json({ mensaje: 'No se encontraron registros' });
+        }
+
+        res.json(results);
+    } catch (error) {
+        console.error('❌ Error al obtener registros:', error);
+        res.status(500).json({ error: `Error interno del servidor: ${error.message}` });
+    }
+});
+// =============================
+router.post('/sensores', async (req, res) => {
+    const { id_login, temperatura_ds18b20, ecg, bpm, spo2, bpm_max30102, temperatura_dht11, humedad } = req.body;
+
+    if (!id_login || !temperatura_ds18b20 || !temperatura_dht11 || !humedad) {
+        return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    }
+
+    // 🔥 Formatear el array ECG como JSON para almacenarlo correctamente
+    const ecgJson = JSON.stringify(ecg);
+
+    try {
+        const queryCheck = 'SELECT * FROM tb_sensor WHERE id_login = ?';
+        const results = await queryAsync(queryCheck, [id_login]);
+
+        if (results.length > 0) {
+            // ✅ Actualizar si ya existe el usuario
+            const queryUpdate = `
+                UPDATE tb_sensor
+                SET temperatura_ds18b20 = ?, ecg = ?, bpm = ?, spo2 = ?, bpm_max30102 = ?,
+                    temperatura_dht11 = ?, humedad = ?, created_at = NOW()
+                WHERE id_login = ?
+            `;
+            
+            await queryAsync(queryUpdate, [
+                temperatura_ds18b20, ecgJson, bpm, spo2, bpm_max30102,
+                temperatura_dht11, humedad, id_login
+            ]);
+
+            res.json({ mensaje: 'Datos actualizados correctamente' });
+
+        } else {
+            // ✅ Insertar si no existe
+            const queryInsert = `
+                INSERT INTO tb_sensor (id_login, temperatura_ds18b20, ecg, bpm, spo2, bpm_max30102,
+                temperatura_dht11, humedad, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            `;
+            
+            await queryAsync(queryInsert, [
+                id_login, temperatura_ds18b20, ecgJson, bpm, spo2, bpm_max30102,
+                temperatura_dht11, humedad
+            ]);
+
+            res.status(201).json({ mensaje: 'Datos insertados correctamente' });
+        }
+
+    } catch (error) {
+        console.error('❌ Error al insertar/actualizar sensor:', error);
+        res.status(500).json({ error: `Error interno del servidor: ${error.message}` });
+    }
+});
+
 
 module.exports = router;
